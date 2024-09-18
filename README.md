@@ -8,6 +8,8 @@ For now, CUDA and CPU only. To compile:
 
 ## Compile for CPU (Tested with Linux x86)
 ````
+git clone --recursive https://github.com/balisujohn/slop.git
+cd slop
 mkdir build
 cd build
 cmake .. 
@@ -15,6 +17,8 @@ make
 ````
 ## Compile for CUDA
 ````
+git clone --recursive https://github.com/balisujohn/slop.git
+cd slop
 mkdir build
 cd build
 cmake .. -DSD_CUBLAS=ON
