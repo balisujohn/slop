@@ -6,7 +6,7 @@
 # Compiling
 For now, CUDA and CPU only. To compile:
 
-## Compile for CPU (Tested with Linux x86)
+## Compile for CPU (Tested with Ubuntu 22.04 x86)
 ````
 git clone --recursive https://github.com/balisujohn/slop.git
 cd slop
