@@ -6,7 +6,7 @@
 # Compiling
 For now, CUDA and CPU only. To compile:
 
-## Compile for CPU (Tested with on Linux x86)
+## Compile for CPU (Tested with Linux x86)
 ````
 mkdir build
 cd build
