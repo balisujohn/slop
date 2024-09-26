@@ -35,8 +35,17 @@
 #include <sstream>
 #include <stack>
 
+#ifdef SLOP_WINDOWS_BUILD
+#include <windows.h>
+#include <shlobj.h>
+#endif
+
+
 using json = nlohmann::json;
+
 namespace fs = std::filesystem;
+
+/*
 
 // [Win32] Our example includes a copy of glfw3.lib pre-compiled with VS2010 to
 // maximize ease of testing and compatibility with old VS compilers. To link
@@ -55,8 +64,39 @@ namespace fs = std::filesystem;
 #include "../libs/emscripten/emscripten_mainloop_stub.h"
 #endif
 
+//todo
+
 const std::string config_dir =
     std::getenv("HOME") + std::string("/.config/slop");
+
+*/
+
+
+//setings location differs by platform
+
+#ifdef SLOP_WINDOWS_BUILD
+std::string getAppDataPath() {
+    // Buffer to store the path
+    char appDataPath[MAX_PATH];
+
+    // Get the AppData path
+    if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_APPDATA, NULL, 0, appDataPath))) {
+        std::cout << std::string(appDataPath) << std::endl;
+
+        return std::string(appDataPath); // Convert to std::string
+    } else {
+        throw std::runtime_error("Failed to get AppData path.");
+    }
+}
+const std::string config_dir = getAppDataPath() +  std::string("/slop");
+#endif
+
+#ifdef SLOP_LINUX_BUILD
+const std::string config_dir =
+    std::getenv("HOME") + std::string("/.config/slop");
+#endif
+
+
 const std::string settings_file = config_dir + "/settings.json";
 
 struct Layer {
@@ -624,8 +664,8 @@ bool drawSelectionBox(GLuint texture_id, int x1, int y1, int x2, int y2,
         continue;
 
       // Apply radius effect for rounded corners
-      int dx1 = std::min(x - x1, x2 - x);
-      int dy1 = std::min(y - y1, y2 - y);
+      int dx1 = min(x - x1, x2 - x);
+      int dy1 = min(y - y1, y2 - y);
       bool is_border = (x == x1 || x == x2 || y == y1 || y == y2 ||
                         dx1 * dx1 + dy1 * dy1 <= radius * radius);
 
@@ -678,8 +718,8 @@ bool drawBox(GLuint texture_id, int x1, int y1, int x2, int y2, int image_width,
         continue;
 
       // Apply radius effect for rounded corners
-      int dx1 = std::min(x - x1, x2 - x);
-      int dy1 = std::min(y - y1, y2 - y);
+      int dx1 = min(x - x1, x2 - x);
+      int dy1 = min(y - y1, y2 - y);
       bool is_border = (x == x1 || x == x2 || y == y1 || y == y2 ||
                         dx1 * dx1 + dy1 * dy1 <= radius * radius);
 
@@ -1350,8 +1390,8 @@ struct FlattenedLayerData getFlattenedLayerData(std::vector<Layer> &layers) {
 
   for (const auto &layer : layers) {
     if (layer.enabled) {
-      maxWidth = std::max(maxWidth, layer.width);
-      maxHeight = std::max(maxHeight, layer.height);
+      maxWidth = max(maxWidth, layer.width);
+      maxHeight = max(maxHeight, layer.height);
     }
   }
 
@@ -1574,7 +1614,7 @@ static void glfw_error_callback(int error, const char *description) {
 
 // Main code
 int main(int, char **) {
-
+ 
   bool prompt_popup_open = false;
   std::string prompt_string = "";
 
@@ -1756,7 +1796,7 @@ int main(int, char **) {
                  (scale_factor / 100.0);
 
       if (i == topActiveIndex) {
-        if (!ImGui::IsKeyDown(ImGui::GetKeyIndex(ImGuiMod_Ctrl)) &&
+        if (!ImGui::GetIO().KeyCtrl &&
             ImGui::IsMouseDown(ImGuiMouseButton_Left) &&
             ImGui::IsWindowFocused() && x_offset < layer.width &&
             x_offset >= 0 && y_offset < layer.height && y_offset >= 0) {
@@ -1789,7 +1829,7 @@ int main(int, char **) {
           historyNode = true;
         }
 
-        if (ImGui::IsKeyDown(ImGui::GetKeyIndex(ImGuiMod_Ctrl))) {
+        if (ImGui::GetIO().KeyCtrl) {
 
           if (io.MouseWheel != 0) {
 
@@ -1823,6 +1863,7 @@ int main(int, char **) {
     }
 
     {
+
       ImGui::BeginMainMenuBar();
       ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
 
@@ -1914,7 +1955,7 @@ int main(int, char **) {
         ImGui::EndMenu();
       }
 
-      ImGui::End();
+        ImGui::EndMainMenuBar();
     }
     if (currentAction == ActionType::Import) {
       currentFilePickerAction = FilePickerActionType::Import;
@@ -2005,6 +2046,8 @@ int main(int, char **) {
         layers[toRemove[0]].width = result.width;
         layers[toRemove[0]].height = result.height;
 
+        topActiveIndex = getTopActiveLayerIndex(layers);
+
         historyNode = true;
       }
     }
@@ -2051,12 +2094,12 @@ int main(int, char **) {
       }
 
       if (currentFilePickerAction == FilePickerActionType::Save) {
-        saveLayersToFile(layers, filePicker.GetSelected());
+        saveLayersToFile(layers, filePicker.GetSelected().string().c_str());
         filePicker.ClearSelected();
       }
 
       if (currentFilePickerAction == FilePickerActionType::Load) {
-        loadLayersFromFile(layers, filePicker.GetSelected());
+        loadLayersFromFile(layers, filePicker.GetSelected().string().c_str());
 
         filePicker.ClearSelected();
         historyNode = true;
@@ -2071,11 +2114,11 @@ int main(int, char **) {
 
         for (const auto &layer : layers) {
           if (layer.enabled) {
-            maxWidth = std::max(maxWidth, layer.width);
-            maxHeight = std::max(maxHeight, layer.height);
+            maxWidth = max(maxWidth, layer.width);
+            maxHeight = max(maxHeight, layer.height);
           }
         }
-        save_png(filePicker.GetSelected(), result, maxWidth, maxHeight);
+        save_png(filePicker.GetSelected().string().c_str(), result, maxWidth, maxHeight);
         filePicker.ClearSelected();
       }
     }
@@ -2124,7 +2167,7 @@ int main(int, char **) {
       y_offset = (ImGui::GetMousePos().y - ImGui::GetItemRectMin().y) /
                  (scale_factor / 100.0);
 
-      if (!ImGui::IsKeyDown(ImGui::GetKeyIndex(ImGuiMod_Ctrl)) &&
+      if (!ImGui::GetIO().KeyCtrl &&
           ImGui::IsMouseDown(ImGuiMouseButton_Left) &&
           ImGui::IsWindowFocused() && x_offset < layers[topActiveIndex].width &&
           x_offset >= 0 && y_offset < layers[topActiveIndex].height &&
@@ -2238,7 +2281,7 @@ int main(int, char **) {
 
       if (!(state.selectionState.dragging) &&
           !state.selectionState.completeSelection &&
-          !ImGui::IsKeyDown(ImGui::GetKeyIndex(ImGuiMod_Ctrl)) &&
+          !ImGui::GetIO().KeyCtrl &&
           ImGui::IsMouseDown(ImGuiMouseButton_Left) &&
           ImGui::IsWindowFocused() && x_offset < layers[topActiveIndex].width &&
           x_offset >= 0 && y_offset < layers[topActiveIndex].height &&
@@ -2253,9 +2296,9 @@ int main(int, char **) {
                  ImGui::IsWindowFocused()) {
 
         state.selectionState.corner2[0] =
-            std::min(x_offset, layers[topActiveIndex].width);
+            min(x_offset, layers[topActiveIndex].width);
         state.selectionState.corner2[1] =
-            std::min(y_offset, layers[topActiveIndex].height);
+            min(y_offset, layers[topActiveIndex].height);
 
         state.selectionState.completeSelection = true;
 
@@ -2272,14 +2315,14 @@ int main(int, char **) {
         int tempY = state.selectionState.corner1[1];
 
         state.selectionState.corner1[0] =
-            std::min(state.selectionState.corner2[0], tempX);
+            min(state.selectionState.corner2[0], tempX);
         state.selectionState.corner1[1] =
-            std::min(state.selectionState.corner2[1], tempY);
+            min(state.selectionState.corner2[1], tempY);
 
         state.selectionState.corner2[0] =
-            std::max(state.selectionState.corner2[0], tempX);
+            max(state.selectionState.corner2[0], tempX);
         state.selectionState.corner2[1] =
-            std::max(state.selectionState.corner2[1], tempY);
+            max(state.selectionState.corner2[1], tempY);
 
         copyTextureSubset(
             &(layers[topActiveIndex].layerData),
@@ -2311,7 +2354,7 @@ int main(int, char **) {
             ImGui::GetMousePos().y - state.selectionState.selectionYOffset;
       }
       // continue drag
-      else if ((!ImGui::IsKeyDown(ImGui::GetKeyIndex(ImGuiMod_Ctrl))) &&
+      else if ((!ImGui::GetIO().KeyCtrl) &&
                ((ImGui::IsMouseDown(ImGuiMouseButton_Left)) &&
                 ImGui::IsWindowFocused() &&
                 state.selectionState.selectionDragMode)) {
@@ -2354,7 +2397,7 @@ int main(int, char **) {
     ImGui::Render();
 
     if (ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Z)) &&
-            ImGui::IsKeyDown(ImGui::GetKeyIndex(ImGuiMod_Ctrl)) ||
+        ImGui::GetIO().KeyCtrl ||
         currentAction == ActionType::Undo) {
       if (history.size() > 1) {
 
@@ -2370,7 +2413,7 @@ int main(int, char **) {
     }
 
     if (!state.dragMode && ImGui::IsMouseDown(ImGuiMouseButton_Left) &&
-        ImGui::IsKeyDown(ImGui::GetKeyIndex(ImGuiMod_Ctrl))) {
+        ImGui::GetIO().KeyCtrl) {
       state.dragMode = true;
       state.dragInitX = ImGui::GetMousePos().x;
       state.dragInitY = ImGui::GetMousePos().y;
@@ -2379,7 +2422,7 @@ int main(int, char **) {
       state.oldViewOffsetY = viewOffsetY;
 
     } else if (state.dragMode && ImGui::IsMouseDown(ImGuiMouseButton_Left) &&
-               ImGui::IsKeyDown(ImGui::GetKeyIndex(ImGuiMod_Ctrl))) {
+        ImGui::GetIO().KeyCtrl) {
       viewOffsetX =
           state.oldViewOffsetX + ImGui::GetMousePos().x - state.dragInitX;
       viewOffsetY =
