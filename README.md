@@ -27,6 +27,7 @@ cd build
 cmake .. 
 cmake --build . --config release
 ````
+This is tested with Windows 10 and visual studio 2022
 
 ## Compile for CUDA
 
@@ -51,7 +52,7 @@ cd build
 cmake .. -DSD_CUBLAS=ON
 cmake --build . --config release
 ````
-This is tested with Windows 10 and cuda 12.5 and a 1070ti
+This is tested with Windows 10 and cuda 12.5 and a 1070ti and visual studio 2022
 
 
 # Running
