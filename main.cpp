@@ -94,6 +94,18 @@ const std::string config_dir = getAppDataPath() +  std::string("/slop");
 #ifdef SLOP_LINUX_BUILD
 const std::string config_dir =
     std::getenv("HOME") + std::string("/.config/slop");
+
+
+template<typename T>
+T max(T a, T b) {
+    return std::max(a, b);
+}
+
+template<typename T>
+T min(T a, T b) {
+    return std::min(a, b);
+}
+
 #endif
 
 
