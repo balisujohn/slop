@@ -6,7 +6,9 @@
 # Compiling
 For now, CUDA and CPU only. To compile:
 
-## Compile for CPU (Tested with Ubuntu 22.04 x86)
+## Compile for CPU 
+
+### Ubuntu
 ````
 git clone --recursive https://github.com/balisujohn/slop.git
 cd slop
@@ -15,7 +17,20 @@ cd build
 cmake .. 
 make
 ````
+### Windows
+In powershell: 
+````
+git clone --recursive https://github.com/balisujohn/slop.git
+cd slop
+mkdir build
+cd build
+cmake .. 
+cmake --build . --config release
+````
+
 ## Compile for CUDA
+
+### Ubuntu 
 ````
 git clone --recursive https://github.com/balisujohn/slop.git
 cd slop
@@ -25,6 +40,19 @@ cmake .. -DSD_CUBLAS=ON
 make
 ````
 This is tested with Ubuntu 22.04 and cuda 12.0 and a 1070ti
+
+### Windows
+
+````
+git clone --recursive https://github.com/balisujohn/slop.git
+cd slop
+mkdir build
+cd build
+cmake .. -DSD_CUBLAS=ON
+cmake --build . --config release
+````
+This is tested with Windows 10 and cuda 12.5 and a 1070ti
+
 
 # Running
 
@@ -38,9 +66,17 @@ In order to use the generation feature, a stable diffusion 1.5 safetensors check
 In order to use inpainting, stable diffusion webui needs to be run in api mode with the following launch invocation.
 https://github.com/AUTOMATIC1111/stable-diffusion-webui
 
+
+## Ubuntu
 ````
 ./webui.sh --api
 ````
+
+## Windows
+````
+webui.bat --api
+````
+
 
 SLOP looks for this endpoint to be active `http://127.0.0.1:7860/sdapi/v1/img2img`
 
