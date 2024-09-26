@@ -64,6 +64,8 @@ elseif (WIN32)
     target_include_directories(slop PRIVATE ${GLFW_INCLUDE_DIRS})
     target_link_libraries(slop PRIVATE opengl32.lib ../GLFW/glfw3)
     target_link_libraries(slop PRIVATE stable-diffusion ws2_32.lib)
+    target_compile_options(slop PRIVATE "/MP")
+
 endif()
 
 # Add a custom target to clean build artifacts

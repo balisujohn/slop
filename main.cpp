@@ -81,7 +81,6 @@ std::string getAppDataPath() {
 
     // Get the AppData path
     if (SUCCEEDED(SHGetFolderPathA(NULL, CSIDL_APPDATA, NULL, 0, appDataPath))) {
-        std::cout << std::string(appDataPath) << std::endl;
 
         return std::string(appDataPath); // Convert to std::string
     } else {
