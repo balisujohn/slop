@@ -1782,8 +1782,8 @@ int main(int, char **) {
 
       ImGui::SetNextWindowPos(ImVec2(0 + viewOffsetX, viewOffsetY));
       ImGui::SetNextWindowSize(
-          ImVec2((scale_factor / 100) * layer.width + 40,
-                 (scale_factor / 100) * layer.height + 40));
+          ImVec2((scale_factor / 100.0) * layer.width + 40,
+                 (scale_factor / 100.0) * layer.height + 40));
 
       ImGuiWindowFlags flags =
           ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoBringToFrontOnFocus |
@@ -1797,8 +1797,8 @@ int main(int, char **) {
       // i+=1; // Pass a pointer to our bool variable (the window will have a
       // closing button that will clear the bool when clicked)
       ImGui::Image((void *)(intptr_t)layer.layerData,
-                   ImVec2((scale_factor / 100) * layer.width,
-                          (scale_factor / 100) * layer.height));
+                   ImVec2((scale_factor / 100.0) * layer.width,
+                          (scale_factor / 100.0) * layer.height));
       ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
 
       x_offset = (ImGui::GetMousePos().x - ImGui::GetItemRectMin().x) /
@@ -1853,11 +1853,7 @@ int main(int, char **) {
             int oldXDist = (ImGui::GetMousePos().x - ImGui::GetItemRectMin().x);
             int oldYDist = (ImGui::GetMousePos().y - ImGui::GetItemRectMin().y);
 
-            scale_factor += io.MouseWheel * 100;
-
-            if (scale_factor < 100) {
-              scale_factor = 100;
-            }
+            scale_factor += io.MouseWheel * (scale_factor/10.0);
 
             float ratio = (float)scale_factor / (float)old_scale_factor;
 
@@ -2282,8 +2278,8 @@ int main(int, char **) {
 
       ImGui::Image(
           (void *)(intptr_t)selectionOverlay,
-          ImVec2((scale_factor / 100) * layers[topActiveIndex].width,
-                 (scale_factor / 100) * layers[topActiveIndex].height));
+          ImVec2((scale_factor / 100.0) * layers[topActiveIndex].width,
+                 (scale_factor / 100.0) * layers[topActiveIndex].height));
 
       x_offset = (ImGui::GetMousePos().x - ImGui::GetItemRectMin().x) /
                  (scale_factor / 100.0);
