@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(slop)
 
-set(SD_BUILD_SHARED_LIB ON)
+set(SD_BUILD_SHARED_LIB OFf)
 
 set(TARGET slop)
 
@@ -35,10 +35,14 @@ target_include_directories(slop PRIVATE
     ${IMGUI_DIR}/backends
     ${IMGUI_DIR}/stable-diffusion.cpp
     ${IMGUI_DIR}
+    ${IMGUI_DIR}/GLFW
 )
 
-# Find and link GLFW library
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+
+    add_compile_definitions(SLOP_LINUX_BUILD)
+
+
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(GLFW REQUIRED glfw3)
     add_subdirectory(stable-diffusion.cpp)
@@ -50,11 +54,18 @@ elseif (APPLE)
     find_package(glfw3 REQUIRED)
     target_link_libraries(slop PRIVATE glfw)
     target_link_libraries(slop PRIVATE "-framework OpenGL")
-elseif (MSYS)
-    find_package(PkgConfig REQUIRED)
-    pkg_check_modules(GLFW REQUIRED glfw3)
+elseif (WIN32)
+    add_subdirectory(stable-diffusion.cpp)
+
+    add_compile_definitions(SLOP_WINDOWS_BUILD)
+
+    # Link libraries and set include directories specific to Windows
     target_link_libraries(slop PRIVATE ${GLFW_LIBRARIES} -lGL)
     target_include_directories(slop PRIVATE ${GLFW_INCLUDE_DIRS})
+    target_link_libraries(slop PRIVATE opengl32.lib ../GLFW/glfw3)
+    target_link_libraries(slop PRIVATE stable-diffusion ws2_32.lib)
+    target_compile_options(slop PRIVATE "/MP")
+
 endif()
 
 # Add a custom target to clean build artifacts
