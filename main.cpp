@@ -149,6 +149,17 @@ struct SelectionState {
   int initialDragX = 0;
   int initialDragY = 0;
   int selectionZoom = 100;
+
+  bool bottomRightScaleMode = false;
+  bool rightScaleMode = false;
+  bool bottomScaleMode = false;
+  bool topLeftScaleMode = false;
+  bool leftScaleMode = false;
+  bool topRightScaleMode = false;
+  bool bottomLeftScaleMode = false;
+  bool topScaleMode = false;
+
+
   GLuint selection;
 };
 
@@ -807,6 +818,57 @@ bool copyTextureSubset(GLuint *in_texture, GLuint *out_texture, int width,
 
   return true;
 }
+
+bool resizeTexture(GLuint *in_texture, int dst_width, int dst_height) {
+    // Bind the input texture
+    glBindTexture(GL_TEXTURE_2D, *in_texture);
+
+    // Get the original texture dimensions
+    GLint src_width, src_height;
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &src_width);
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &src_height);
+
+    // Allocate memory for the original texture data
+    unsigned char *image_data = new unsigned char[src_width * src_height * 4]; // RGBA
+
+    // Read the pixel data from the texture
+    glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, image_data);
+
+    // Allocate memory for the resized texture data
+    unsigned char *resized_image_data = new unsigned char[dst_width * dst_height * 4];
+
+    // Resize the texture using nearest neighbor interpolation
+    for (int y = 0; y < dst_height; ++y) {
+        for (int x = 0; x < dst_width; ++x) {
+            // Calculate the corresponding pixel in the original texture
+            int src_x = static_cast<int>(x * src_width / dst_width);
+            int src_y = static_cast<int>(y * src_height / dst_height);
+
+            // Clamp the indices to the original texture dimensions
+            src_x = std::min(src_x, src_width - 1);
+            src_y = std::min(src_y, src_height - 1);
+
+            // Get the pixel values from the original texture
+            unsigned char *p = &image_data[(src_y * src_width + src_x) * 4];
+
+            // Copy the pixel values to the resized texture
+            for (int c = 0; c < 4; ++c) {
+                resized_image_data[(y * dst_width + x) * 4 + c] = p[c];
+            }
+        }
+    }
+
+    // Upload pixels into the original texture
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, dst_width, dst_height, 0, GL_RGBA,
+                 GL_UNSIGNED_BYTE, resized_image_data);
+
+    // Free the allocated image data
+    delete[] image_data;
+    delete[] resized_image_data;
+
+    return true;
+}
+
 
 bool copyTextureToRegion(GLuint *in_texture, GLuint *out_texture, int src_width,
                          int src_height, int dst_width, int dst_height,
@@ -1678,6 +1740,8 @@ int main(int, char **) {
   io.ConfigFlags |=
       ImGuiConfigFlags_NavEnableGamepad; // Enable Gamepad Controls
 
+  io.MouseDrawCursor = true;
+
   ImGui::StyleColorsDark();
 
   // Setup Platform/Renderer backends
@@ -2216,6 +2280,9 @@ int main(int, char **) {
 
     if (state.selectionMode) {
 
+        const int tolerance = 2;
+
+
       if (state.selectionState.completeSelection &&
           !(state.selectionState.dragging)) {
 
@@ -2298,6 +2365,8 @@ int main(int, char **) {
         state.selectionState.corner1[0] = x_offset;
         state.selectionState.corner1[1] = y_offset;
 
+        
+
       } else if (state.selectionState.dragging &&
                  ImGui::IsMouseDown(ImGuiMouseButton_Left) &&
                  ImGui::IsWindowFocused()) {
@@ -2307,13 +2376,19 @@ int main(int, char **) {
         state.selectionState.corner2[1] =
             min(y_offset, layers[topActiveIndex].height);
 
-        state.selectionState.completeSelection = true;
 
-        drawSelectionBox(
-            selectionOverlay, state.selectionState.corner1[0],
-            state.selectionState.corner1[1], state.selectionState.corner2[0],
-            state.selectionState.corner2[1], layers[topActiveIndex].width,
-            layers[topActiveIndex].height, 1, 0, 0, 0, 255, false);
+        // Ensure corner2's coordinates are <= upper bounds
+        state.selectionState.corner2[0] = min(layers[topActiveIndex].width-1, state.selectionState.corner2[0]);
+        state.selectionState.corner2[1] = min(layers[topActiveIndex].height-1, state.selectionState.corner2[1]);
+
+        
+        // Ensure corner2's coordinates are >= lower bounds
+        state.selectionState.corner2[0] = max(0, state.selectionState.corner2[0]);
+        state.selectionState.corner2[1] = max(0, state.selectionState.corner2[1]);
+
+
+
+        state.selectionState.completeSelection = true;
 
       } else if (!(ImGui::IsMouseDown(ImGuiMouseButton_Left)) &&
                  ImGui::IsWindowFocused() && state.selectionState.dragging) {
@@ -2331,6 +2406,19 @@ int main(int, char **) {
         state.selectionState.corner2[1] =
             max(state.selectionState.corner2[1], tempY);
 
+
+        //making sure the selectionState cannot go out of bounds
+        // Ensure corner1's coordinates are >= 0
+        state.selectionState.corner1[0] = max(0, state.selectionState.corner1[0]);
+        state.selectionState.corner1[1] = max(0, state.selectionState.corner1[1]);
+
+        // Ensure corner2's coordinates are <= upper bounds
+        state.selectionState.corner2[0] = min(layers[topActiveIndex].width-1, state.selectionState.corner2[0]);
+        state.selectionState.corner2[1] = min(layers[topActiveIndex].height-1, state.selectionState.corner2[1]);
+
+
+
+
         copyTextureSubset(
             &(layers[topActiveIndex].layerData),
             &(state.selectionState.selection), layers[topActiveIndex].width,
@@ -2345,7 +2433,190 @@ int main(int, char **) {
 
         state.selectionState.dragging = false;
       }
-      // begin drag
+         else if (ImGui::IsMouseDown(ImGuiMouseButton_Left) && state.selectionState.bottomRightScaleMode) // bottom right
+      {
+        state.selectionState.corner2[0] = max((int)((ImGui::GetMousePos().x - ImGui::GetItemRectMin().x) /
+                 (scale_factor / 100.0)), state.selectionState.corner1[0]+1);
+        state.selectionState.corner2[1] = max((int)((ImGui::GetMousePos().y - ImGui::GetItemRectMin().y) /
+                 (scale_factor / 100.0)),state.selectionState.corner1[1]+1);
+
+      }
+      else if (!(ImGui::IsMouseDown(ImGuiMouseButton_Left)) && state.selectionState.bottomRightScaleMode)
+      {
+        state.selectionState.bottomRightScaleMode = false;
+      }
+      else if (ImGui::IsMouseDown(ImGuiMouseButton_Left) && state.selectionState.bottomScaleMode) // bottom
+      {
+        state.selectionState.corner2[1] = max((int)((ImGui::GetMousePos().y - ImGui::GetItemRectMin().y) /
+                 (scale_factor / 100.0)),state.selectionState.corner1[1]+1);
+
+      }
+      else if (!(ImGui::IsMouseDown(ImGuiMouseButton_Left)) && state.selectionState.bottomScaleMode)
+      {
+        state.selectionState.bottomScaleMode = false;
+      }
+      else if (ImGui::IsMouseDown(ImGuiMouseButton_Left) && state.selectionState.rightScaleMode) // right
+      {
+        state.selectionState.corner2[0] = max((int)((ImGui::GetMousePos().x - ImGui::GetItemRectMin().x) /
+                 (scale_factor / 100.0)), state.selectionState.corner1[0]+1);
+
+      }
+      else if (!(ImGui::IsMouseDown(ImGuiMouseButton_Left)) && state.selectionState.rightScaleMode)
+      {
+        state.selectionState.rightScaleMode = false;
+      }
+      else if (ImGui::IsMouseDown(ImGuiMouseButton_Left) && state.selectionState.topLeftScaleMode) // top left
+      {
+        state.selectionState.corner1[0] = min((int)((ImGui::GetMousePos().x - ImGui::GetItemRectMin().x) /
+                 (scale_factor / 100.0)), state.selectionState.corner2[0]-1);
+        state.selectionState.corner1[1] = min((int)((ImGui::GetMousePos().y - ImGui::GetItemRectMin().y) /
+                 (scale_factor / 100.0)),state.selectionState.corner2[1]-1);
+
+      }
+      else if (!(ImGui::IsMouseDown(ImGuiMouseButton_Left)) && state.selectionState.topLeftScaleMode)
+      {
+        state.selectionState.topLeftScaleMode = false;
+      }
+      else if (ImGui::IsMouseDown(ImGuiMouseButton_Left) && state.selectionState.topScaleMode) // top
+      {
+        state.selectionState.corner1[1] = min((int)((ImGui::GetMousePos().y - ImGui::GetItemRectMin().y) /
+                 (scale_factor / 100.0)), state.selectionState.corner2[1]-1);
+
+      }
+      else if (!(ImGui::IsMouseDown(ImGuiMouseButton_Left)) && state.selectionState.topScaleMode)
+      {
+        state.selectionState.topScaleMode = false;
+      }
+      else if (ImGui::IsMouseDown(ImGuiMouseButton_Left) && state.selectionState.topRightScaleMode) // top right
+      {
+        state.selectionState.corner1[1] = min((int)((ImGui::GetMousePos().y - ImGui::GetItemRectMin().y) /
+                 (scale_factor / 100.0)), state.selectionState.corner2[1]-1);
+        state.selectionState.corner2[0] = max((int)((ImGui::GetMousePos().x - ImGui::GetItemRectMin().x) /
+                 (scale_factor / 100.0)), state.selectionState.corner1[0]+1);
+
+      }
+      else if (!(ImGui::IsMouseDown(ImGuiMouseButton_Left)) && state.selectionState.topRightScaleMode)
+      {
+        state.selectionState.topRightScaleMode = false;
+      }
+      else if (ImGui::IsMouseDown(ImGuiMouseButton_Left) && state.selectionState.bottomLeftScaleMode) // bottom left
+      {
+
+        int oldWidth = state.selectionState.corner2[0] - state.selectionState.corner1[0];
+        int oldHeight = state.selectionState.corner2[1] - state.selectionState.corner1[1];
+
+        state.selectionState.corner2[1] = max((int)((ImGui::GetMousePos().y - ImGui::GetItemRectMin().y) /
+                 (scale_factor / 100.0)), state.selectionState.corner1[1]+1);
+        state.selectionState.corner1[0] = min((int)((ImGui::GetMousePos().x - ImGui::GetItemRectMin().x) /
+                 (scale_factor / 100.0)), state.selectionState.corner2[0]-1);
+
+        int newWidth = state.selectionState.corner2[0] - state.selectionState.corner1[0];
+        int newHeight = state.selectionState.corner2[1] - state.selectionState.corner1[1];
+
+
+        int widthRatio = float(newWidth)/float(oldWidth);
+        int heightRatio = float(newHeight)/float(oldHeight);
+      
+      }
+      else if (!(ImGui::IsMouseDown(ImGuiMouseButton_Left)) && state.selectionState.bottomLeftScaleMode)
+      {
+        std::cout << "end rescale" << std::endl;
+        state.selectionState.bottomLeftScaleMode = false;
+      }
+      else if (ImGui::IsMouseDown(ImGuiMouseButton_Left) && state.selectionState.leftScaleMode) // left
+      {
+        state.selectionState.corner1[0] = min((int)((ImGui::GetMousePos().x - ImGui::GetItemRectMin().x) /
+                 (scale_factor / 100.0)), state.selectionState.corner2[0]-1);
+        
+      }
+      else if (!(ImGui::IsMouseDown(ImGuiMouseButton_Left)) && state.selectionState.leftScaleMode)
+      {
+        std::cout << "end rescale" << std::endl;
+        state.selectionState.leftScaleMode = false;
+      }
+
+       else if (!state.selectionState.selectionDragMode && x_offset >= state.selectionState.corner1[0] - tolerance && 
+              x_offset <= state.selectionState.corner1[0] + tolerance && 
+              y_offset >= state.selectionState.corner1[1] - tolerance && 
+              y_offset <= state.selectionState.corner1[1] + tolerance) // Top left corner
+      {
+          ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNWSE);
+          if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
+          {
+            state.selectionState.topLeftScaleMode = true;
+          }
+      }
+      else if (!state.selectionState.selectionDragMode && x_offset >= state.selectionState.corner2[0] - tolerance && 
+              x_offset <= state.selectionState.corner2[0] + tolerance && 
+              y_offset >= state.selectionState.corner1[1] - tolerance && 
+              y_offset <= state.selectionState.corner1[1] + tolerance) // Top right corner
+      {
+          ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNESW);
+                    if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
+          {
+            state.selectionState.topRightScaleMode = true;
+          }
+
+      }
+      else if (!state.selectionState.selectionDragMode && x_offset >= state.selectionState.corner1[0] - tolerance && 
+              x_offset <= state.selectionState.corner1[0] + tolerance && 
+              y_offset >= state.selectionState.corner2[1] - tolerance && 
+              y_offset <= state.selectionState.corner2[1] + tolerance) // Bottom left corner
+      {
+          ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNESW);
+          if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
+          {
+            state.selectionState.bottomLeftScaleMode = true;
+          }
+      }
+      else if (!state.selectionState.selectionDragMode && x_offset >= state.selectionState.corner2[0] - tolerance && 
+              x_offset <= state.selectionState.corner2[0] + tolerance && 
+              y_offset >= state.selectionState.corner2[1] - tolerance && 
+              y_offset <= state.selectionState.corner2[1] + tolerance) // Bottom right corner
+      {
+          ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNWSE);
+          if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
+          {
+            state.selectionState.bottomRightScaleMode = true;
+          }
+      }
+      else if (!state.selectionState.selectionDragMode && y_offset >= state.selectionState.corner1[1] - tolerance && 
+              y_offset <= state.selectionState.corner1[1] + tolerance && 
+              x_offset > state.selectionState.corner1[0] && 
+              x_offset < state.selectionState.corner2[0]) // Top side
+      {
+          ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+                    if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
+          {
+            state.selectionState.topScaleMode = true;
+          }
+
+      }
+      else if (!state.selectionState.selectionDragMode && y_offset >= state.selectionState.corner2[1] - tolerance && 
+              y_offset <= state.selectionState.corner2[1] + tolerance && 
+              x_offset > state.selectionState.corner1[0] && 
+              x_offset < state.selectionState.corner2[0]) // Bottom side
+      {
+          ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+                    if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
+          {
+            state.selectionState.bottomScaleMode = true;
+          }
+
+      }
+      else if (!state.selectionState.selectionDragMode && x_offset >= state.selectionState.corner1[0] - tolerance && 
+              x_offset <= state.selectionState.corner1[0] + tolerance && 
+              y_offset > state.selectionState.corner1[1] && 
+              y_offset < state.selectionState.corner2[1]) // Left side
+      {
+          ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+                    if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
+          {
+            state.selectionState.leftScaleMode = true;
+          }
+
+      }
+        // begin drag
       else if (((ImGui::IsMouseDown(ImGuiMouseButton_Left)) &&
                 ImGui::IsWindowFocused() && !(state.selectionState.dragging) &&
                 !state.selectionState.selectionDragMode &&
@@ -2359,6 +2630,17 @@ int main(int, char **) {
             ImGui::GetMousePos().x - state.selectionState.selectionXOffset;
         state.selectionState.initialDragY =
             ImGui::GetMousePos().y - state.selectionState.selectionYOffset;
+      }
+      else if (!state.selectionState.selectionDragMode && x_offset >= state.selectionState.corner2[0] - tolerance && 
+              x_offset <= state.selectionState.corner2[0] + tolerance && 
+              y_offset > state.selectionState.corner1[1] && 
+              y_offset < state.selectionState.corner2[1]) // Right side
+      {
+          ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+          if (ImGui::IsMouseDown(ImGuiMouseButton_Left))
+          {
+            state.selectionState.rightScaleMode = true;
+          }
       }
       // continue drag
       else if ((!ImGui::GetIO().KeyCtrl) &&
@@ -2378,6 +2660,8 @@ int main(int, char **) {
                    x_offset <= state.selectionState.corner2[0] &&
                    y_offset >= state.selectionState.corner1[1] &&
                    y_offset <= state.selectionState.corner2[1])) {
+
+        resizeTexture(&state.selectionState.selection, state.selectionState.corner2[0]-state.selectionState.corner1[0],state.selectionState.corner2[1]-state.selectionState.corner1[1]);
         copyTextureToRegion(
             &(state.selectionState.selection),
             &(layers[topActiveIndex].layerData),
@@ -2397,8 +2681,23 @@ int main(int, char **) {
         state.selectionState.selectionYOffset = 0;
         historyNode = true;
       }
+     
+
+    if (state.selectionState.completeSelection)
+        {
+              drawSelectionBox(
+              selectionOverlay, state.selectionState.corner1[0],
+              state.selectionState.corner1[1], state.selectionState.corner2[0],
+              state.selectionState.corner2[1], layers[topActiveIndex].width,
+              layers[topActiveIndex].height, 1, 0, 0, 0, 255, false);
+
+        }
+
+
       ImGui::End();
     }
+
+
 
     // Rendering
     ImGui::Render();
