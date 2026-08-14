@@ -1,3 +1,5 @@
+
+
 # SLOP: A Fast and Versatile Generative Image Editor ([Support Development Here!](https://ko-fi.com/johnbalis))
 
 ![SLOP logo](https://github.com/balisujohn/slop/blob/master/assets/sloplogo.png?raw=true)
@@ -112,7 +114,7 @@ SOFTWARE.
 
 ## Component Licenses
 
-Dear IMGui
+Dear ImGui
 
 The MIT License (MIT)
 
@@ -270,4 +272,3 @@ Permission is granted to anyone to use this software for any purpose, including 
 2.    Altered source versions must be plainly marked as such, and must not be misrepresented as being the original software.
 
 3.    This notice may not be removed or altered from any source distribution.
-
